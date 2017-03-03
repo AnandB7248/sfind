@@ -19,6 +19,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
    /* So at a minimum, 3 arguments must be given to follow proper usage convention. */
    if(argc < 3)
    {
+      fprintf(stderr, "Usage: sfind filename [-name str] -print | -exec cmd ... \\;\n");
       fprintf(stderr, "Too few number of arguments: %d\n", argc);
       exit(-1);
    }
@@ -26,7 +27,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
    /* Check if filename exists. (Can also be a path that leads to a directory, instead of a file) */
    if(access(argv[1], F_OK) == -1)
    {
-      fprintf(stderr, "Invalid filename: %s\n", argv[1]);
+      fprintf(stderr, "sfind: '%s': No such file or directory\n", argv[1]);
       exit(-1);
    }
 
@@ -71,7 +72,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
          if(argc != 5)
          {
             fprintf(stderr, "Usage: sfind filename [-name str] -print | -exec cmd ... \\;\n");
-            fprintf(stderr, "-print detected. There should be no input after -print");
+            fprintf(stderr, "-print detected. There should be no input after -print\n");
             exit(-1);
          }
          *printSptr = TRUE;
@@ -93,7 +94,6 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
          if(strcmp(argv[argc - 1], ";") != 0)
          {
             fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
-            fprintf(stderr, "-exec detected. Must use ';' to end the command line\n");
             exit(-1);
          }
          /* Verify that there is no switch given between command line arguments, -exec and \\; */
@@ -142,7 +142,6 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
       if(strcmp(argv[argc - 1], ";") != 0)
       {
          fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
-         fprintf(stderr, "-exec detected. Must use ';' to end the command line\n");
          exit(-1);
       }
       /* Verify that there is no switch given between command line arguments, -exec and \\; */
