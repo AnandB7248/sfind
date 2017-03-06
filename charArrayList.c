@@ -59,7 +59,7 @@ void sort(CharList *cl)
       lowest = &cl->arr[i];
       for(j = i + 1; j < length; j++)
       {
-         if(alphacmp(cl->arr[j], *lowest) < 0)
+         if(strcasecmp(cl->arr[j], *lowest) < 0)
          {
             lowest = &cl->arr[j];
             minIndex = j;
@@ -71,7 +71,7 @@ void sort(CharList *cl)
       cl->arr[minIndex] = temp;
    }
 }
-
+/*
 int alphacmp(char* str1, char* str2)
 {
    int strL1;
@@ -116,7 +116,7 @@ int alphacmp(char* str1, char* str2)
 
    return 0;
 }
-
+*/
 CharList* delete(CharList* l)
 {
    int i;

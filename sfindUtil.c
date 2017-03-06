@@ -3,7 +3,9 @@
 #include "sfindUtil.h"
 #include "getPermission.h"
 #include "charArrayList.h"
+#include "checked_fork.h"
 #include <dirent.h>
+#include <sys/wait.h>
 #define  TRUE 1
 #define FALSE 0
 
@@ -11,7 +13,7 @@ void sfind_print(char* path)
 {
    CharList *files; /* Files in the current directory, to be sorted in lexicographic order */
    int i; /* index for for-loop , see below */
-   char* combineNames; /* To be used when a directory is found, as then we need to recurse into it. */
+   char* newPath; /* To be used when a directory is found, as then we need to recurse into it. */
    files = CharList_constructor();
 
    printf("%s\n", path);
@@ -33,10 +35,10 @@ void sfind_print(char* path)
          {
             checked_chDir(files->arr[i]);
 
-            dynamicStrCat(&combineNames, path, "/", files->arr[i]);
+            dynamicStrCat(&newPath, path, "/", files->arr[i]);
             /* Recurse */
-            sfind_print(combineNames);
-            free(combineNames);
+            sfind_print(newPath);
+            free(newPath);
           
             checked_chDir("..");
          }
@@ -55,33 +57,28 @@ void sfind_name_print(char* path, char* subStr)
 {
    CharList *files;     /* Files in the current directory, to be sorted in lexicographic order */
    int i;               /* index for for-loop , see below */
-   char* combineNames;  /* To be used when a directory is found, as then we need to recurse into it. */
+   char* newPath;  /* To be used when a directory is found, as then we need to recurse into it. */
    files = CharList_constructor();
-
-   /* printf("%s\n", path); */
 
    /* Retrieve all the contents of the directory, except for "." and ".."*/
    /* Sort them and save them into CharList files */
    sortFiles(&files);
-
    /* Now *files should have the contents of the current directory in lexicographic order */
    for(i = 0; i < files->numelements;i++)
    {
-      if(isFile(files->arr[i]))
-      {
-         if(isSubStr(files->arr[i], subStr))
-            printf("%s/%s\n", path, files->arr[i]); 
-      }
-      else if(isDir(files->arr[i]))
+      if(isSubStr(files->arr[i], subStr))
+         printf("%s/%s\n", path, files->arr[i]);
+
+      if(isDir(files->arr[i]))
       {
          if(isExecSet(files->arr[i]))
          {
             checked_chDir(files->arr[i]);
 
-            dynamicStrCat(&combineNames, path, "/", files->arr[i]);
+            dynamicStrCat(&newPath, path, "/", files->arr[i]);
             /* Recurse */
-            sfind_name_print(combineNames, subStr);
-            free(combineNames);
+            sfind_name_print(newPath, subStr);
+            free(newPath);
           
             checked_chDir("..");
          }
@@ -94,6 +91,97 @@ void sfind_name_print(char* path, char* subStr)
    }
 
    files = delete(files);
+}
+
+void sfind_exec(char* path, char** cmdArgs, char* cmdPath, int execArgc)
+{
+   CharList *files;
+   char* newPath;
+   char* newCmdPath;
+   char** execArgs;
+   int i;
+
+   files = CharList_constructor();
+   sortFiles(&files);
+
+   execArgs = argsToExecCmd(cmdArgs, path, cmdPath ,execArgc);
+   execCmd(execArgs);
+   free(execArgs);
+
+   for(i = 0; i < files->numelements; i++)
+   {
+      if(isFile(files->arr[i]))
+      {
+         dynamicStrCat(&newPath, path, "/", files->arr[i]);
+         execArgs = argsToExecCmd(cmdArgs, newPath, cmdPath ,execArgc);
+         execCmd(execArgs);
+         free(execArgs);
+         free(newPath);
+      }
+      else if(isDir(files->arr[i]))
+      {
+         if(isExecSet(files->arr[i]))
+         {
+            checked_chDir(files->arr[i]);
+
+            dynamicStrCat(&newPath, path, "/", files->arr[i]);
+            dynamicStrCat(&newCmdPath, "..", "/", cmdPath);
+            sfind_exec(newPath, cmdArgs,newCmdPath,execArgc);
+
+            free(newPath);
+            free(newCmdPath);
+
+            checked_chDir("..");
+         }
+         else
+         {
+            printf("Unable to enter into directory: %s\n", files->arr[i]);
+         }
+      }
+   }
+
+   files = delete(files);
+}
+
+void sfind_name_exec(char* path, char* subStr, char** cmdArgs, char* cmdPath, int execArgc)
+{
+   CharList *files;
+   int i;
+   char* newPath;
+   char* newCmdPath;
+   char** execArgs;
+
+   files = CharList_constructor();
+
+   sortFiles(&files);
+
+   for(i = 0; i < files->numelements; i++)
+   {
+      printf("File: %s\n", files->arr[i]);
+      printf("cmdPath: %s\n", cmdPath);
+      if(isSubStr(files->arr[i], subStr))
+      {
+         execArgs = argsToExecCmd(cmdArgs, path, cmdPath, execArgc);
+         execCmd(execArgs);
+         free(execArgs);
+      }
+      if(isDir(files->arr[i]))
+      {
+         if(isExecSet(files->arr[i]))
+         {
+            checked_chDir(files->arr[i]);
+            dynamicStrCat(&newPath, path, "/", files->arr[i]);
+            dynamicStrCat(&newCmdPath, "..", "/", cmdPath);
+            sfind_name_exec(newPath, subStr, cmdArgs, newCmdPath, execArgc);
+            free(newPath);
+            free(newCmdPath);
+         }
+         else
+         {
+            printf("Unable to enter into directory: %s/%s\n", path, files->arr[i]);
+         }
+      }
+   }
 }
 
 int isFile(char* filename)
@@ -151,6 +239,21 @@ int isSubStr(const char* haystack, const char* needle)
       return TRUE;
    else
       return FALSE;
+}
+
+int bracesExist(int argc,char** argv, int cmdIndex)
+{
+   int counter = 0;
+   int i;
+
+   /* From argument after cmd to argument before \; */
+   for(i = cmdIndex + 1; i < argc - 1; i++)
+   {
+      if(strcmp(argv[i], "{}") == 0)
+         counter++;
+   }
+
+   return counter;
 }
 
 void sortFiles(CharList** sList)
@@ -220,5 +323,68 @@ void checked_chDir(char* filename)
    {
       fprintf(stderr, "Failed to change into directory: %s\n", filename);
       exit(-1);
+   }
+}
+
+char** argsToExecCmd(char** cmdArgs, char* filename, char* cmdPath, int execArgc)
+{
+   char** execArgs = (char**) malloc(sizeof(char**) * execArgc);
+   int i;
+
+   execArgs[0] = cmdPath;
+
+   for(i = 1; i < (execArgc-1); i++)
+   {
+      if(strcmp(cmdArgs[i], "{}") ==  0)
+         execArgs[i] = filename;
+      else
+         execArgs[i] = cmdArgs[i];
+   }
+
+   execArgs[i] = '\0';
+
+   return execArgs;
+}
+
+char** getCmdArgs(int argc, char** argv, int cmdIndex, int* execArgc)
+{
+   int numArgs = argc - cmdIndex;
+   char** cmdArgs = (char**)malloc(sizeof(char**) * numArgs);
+   int indexCmdArgs, indexArgv;
+
+   for(indexCmdArgs = 0, indexArgv = cmdIndex; indexCmdArgs < (numArgs - 1); indexCmdArgs++, indexArgv++)
+   {
+      cmdArgs[indexCmdArgs] = argv[indexArgv];
+   }
+
+   cmdArgs[indexCmdArgs] = '\0';
+   *execArgc = numArgs;
+
+   return cmdArgs;
+}
+
+void execCmd(char** argsToExec)
+{
+   /* Create another process and execute the specified command */
+   pid_t pid;
+   /*
+   while(argsToExec[i] != '\0')
+   {
+      printf("Exec: %s\n", argsToExec[i++]);
+   }
+   */
+   pid = checked_fork();
+
+   if(pid == 0)
+   {  /* Child */
+      if(execvp(argsToExec[0], argsToExec) < 0)
+      {
+         fprintf(stderr, "Failed to exec: %s | [%s]\n", argsToExec[0], argsToExec[1]);
+         exit(-1);
+      }
+   }
+   else
+   { /* Parent*/
+      wait(NULL);
    }
 }

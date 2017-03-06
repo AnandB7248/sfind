@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "parseCommLine.h"
 #include "sfindUtil.h"
 
@@ -11,7 +12,10 @@ int main(int argc, char* argv[])
    int nameSwitch  = FALSE;
    int printSwitch = FALSE;
    int execSwitch  = FALSE;
-   int cmdIndex;
+   int cmdIndex; /* cmdIndex is only given a value if -exec is given */
+   int execArgc; 
+   char** cmdArgs;
+   char** execArgs;
 
    /* Parse command line arguments*/
    parseCommLine(argc, argv, &nameSwitch, &printSwitch, &execSwitch, &cmdIndex);
@@ -34,7 +38,29 @@ int main(int argc, char* argv[])
          sfind_print(argv[1]);
       }
    }
-   /* 3. Command-line is: sfind -name str -print */
+
+   /* 2. Command-line is: fsfind filename -exec cmd ... \; */
+   if(nameSwitch == FALSE && printSwitch == FALSE && execSwitch == TRUE)
+   {
+      cmdArgs = getCmdArgs(argc, argv, cmdIndex, &execArgc);
+
+      /* If filename is just a file */
+      if(isFile(argv[1]))
+      {
+         execArgs = argsToExecCmd(cmdArgs, argv[1], argv[cmdIndex], execArgc);
+         execCmd(execArgs);
+         free(execArgs);
+      }
+      else
+      {
+         checked_chDir(argv[1]);
+         sfind_exec(argv[1], cmdArgs, argv[cmdIndex],  execArgc);
+      }
+
+      free(cmdArgs);
+   }
+
+   /* 3. Command-line is: sfind filename -name str -print */
    if(nameSwitch == TRUE && printSwitch == TRUE && execSwitch == FALSE)
    {
       /* If filename is a file, and str is a substring of the file's name */
@@ -50,15 +76,30 @@ int main(int argc, char* argv[])
          sfind_name_print(argv[1], argv[3]);
       }
    }
-   /* TEST */
-   /*
-   printf("nameSwitch: %d\n", nameSwitch);
-   printf("printSwitch: %d\n", printSwitch);
-   printf("execSwitch: %d\n", execSwitch);
-   if(execSwitch)
-      printf("Cmd index: %d\n", cmdIndex);
-   */
-   /* TEST */
+
+   /* 4. Command-line is: sfind filename -name str -exec cmd ... \; */
+   if(nameSwitch == TRUE && printSwitch == FALSE && execSwitch == TRUE)
+   {
+      cmdArgs = getCmdArgs(argc, argv, cmdIndex, &execArgc);
+
+      if(isFile(argv[1]))
+      {
+         if(isSubStr(argv[1], argv[3]))
+         {
+            execArgs = argsToExecCmd(cmdArgs, argv[1], argv[cmdIndex],execArgc);
+            execCmd(execArgs);
+            free(execArgs);
+         }
+      }
+      else
+      {
+         /* Change directory to argument filename, argv[1]*/
+         checked_chDir(argv[1]);
+         sfind_name_exec(argv[1], argv[3], cmdArgs, argv[cmdIndex], execArgc);
+      }
+
+      free(cmdArgs);
+   }
 
    return 0;
 }
