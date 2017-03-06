@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "parseCommLine.h"
-#include "checked_open.h"
+#include "checked.h"
 #include "sfindUtil.h"
 
 #define  TRUE 1

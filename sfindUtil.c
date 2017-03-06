@@ -3,7 +3,7 @@
 #include "sfindUtil.h"
 #include "getPermission.h"
 #include "charArrayList.h"
-#include "checked_fork.h"
+#include "checked.h"
 #include <dirent.h>
 #include <sys/wait.h>
 #define  TRUE 1
