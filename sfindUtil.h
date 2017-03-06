@@ -11,9 +11,9 @@ void sfind_print(char*);
 /*             (second parameter) string-char* that represents the substring to find */
 void sfind_name_print(char*, char*);
 
-void sfind_exec(char*, char**, char*, int);
+void sfind_exec(char*, char**, int, int);
 
-void sfind_name_exec(char*,char*, char**, char*, int);
+void sfind_name_exec(char*,char*, char**, int, int);
 
 /* ------------------------------------------------------*/
 /* ---------------------HELPER METHODS ------------------*/
@@ -41,7 +41,7 @@ void dynamicStrCat(char**, char*, const char*, char*);
 
 void checked_chDir(char*);
 
-char** argsToExecCmd(char**, char*, char*, int);
+char** argsToExecCmd(char**, char*, int);
 
 char** getCmdArgs(int, char**, int, int*);
 

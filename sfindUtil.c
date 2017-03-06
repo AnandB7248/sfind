@@ -93,44 +93,51 @@ void sfind_name_print(char* path, char* subStr)
    files = delete(files);
 }
 
-void sfind_exec(char* path, char** cmdArgs, char* cmdPath, int execArgc)
+void sfind_exec(char* path, char** cmdArgs, int execArgc, int origFD)
 {
    CharList *files;
    char* newPath;
-   char* newCmdPath;
    char** execArgs;
    int i;
 
    files = CharList_constructor();
    sortFiles(&files);
-
-   execArgs = argsToExecCmd(cmdArgs, path, cmdPath ,execArgc);
+   /* */
+   if(fchdir(origFD) < 0)
+   {
+      perror("FCHDIR FAILED!\n");
+      exit(-1);
+   }
+   /* */
+   execArgs = argsToExecCmd(cmdArgs, path ,execArgc);
    execCmd(execArgs);
    free(execArgs);
+   checked_chDir(path);
 
    for(i = 0; i < files->numelements; i++)
    {
+      dynamicStrCat(&newPath, path, "/", files->arr[i]);
+
       if(isFile(files->arr[i]))
       {
-         dynamicStrCat(&newPath, path, "/", files->arr[i]);
-         execArgs = argsToExecCmd(cmdArgs, newPath, cmdPath ,execArgc);
+         /* */
+         if(fchdir(origFD) < 0)
+         {
+            perror("FCHDIR FAILED! INSIDE LOOP!\n");
+            exit(-1);
+         }
+         /* */
+         execArgs = argsToExecCmd(cmdArgs, newPath,execArgc);
          execCmd(execArgs);
          free(execArgs);
-         free(newPath);
+         checked_chDir(path);
       }
       else if(isDir(files->arr[i]))
       {
          if(isExecSet(files->arr[i]))
          {
             checked_chDir(files->arr[i]);
-
-            dynamicStrCat(&newPath, path, "/", files->arr[i]);
-            dynamicStrCat(&newCmdPath, "..", "/", cmdPath);
-            sfind_exec(newPath, cmdArgs,newCmdPath,execArgc);
-
-            free(newPath);
-            free(newCmdPath);
-
+            sfind_exec(newPath, cmdArgs,execArgc, origFD);
             checked_chDir("..");
          }
          else
@@ -138,49 +145,57 @@ void sfind_exec(char* path, char** cmdArgs, char* cmdPath, int execArgc)
             printf("Unable to enter into directory: %s\n", files->arr[i]);
          }
       }
+
+      free(newPath);
    }
 
    files = delete(files);
 }
 
-void sfind_name_exec(char* path, char* subStr, char** cmdArgs, char* cmdPath, int execArgc)
+void sfind_name_exec(char* path, char* subStr, char** cmdArgs, int execArgc, int origFD)
 {
    CharList *files;
    int i;
    char* newPath;
-   char* newCmdPath;
    char** execArgs;
 
    files = CharList_constructor();
-
    sortFiles(&files);
 
    for(i = 0; i < files->numelements; i++)
    {
-      printf("File: %s\n", files->arr[i]);
-      printf("cmdPath: %s\n", cmdPath);
+      dynamicStrCat(&newPath, path, "/", files->arr[i]);
+
       if(isSubStr(files->arr[i], subStr))
-      {
-         execArgs = argsToExecCmd(cmdArgs, path, cmdPath, execArgc);
+      {  /* */
+         if(fchdir(origFD) < 0)
+         {
+            perror("fchdir failure!\n");
+            exit(-1);
+         }
+         /* */
+         execArgs = argsToExecCmd(cmdArgs, newPath, execArgc);
          execCmd(execArgs);
          free(execArgs);
+         checked_chDir(path);
       }
       if(isDir(files->arr[i]))
       {
          if(isExecSet(files->arr[i]))
          {
             checked_chDir(files->arr[i]);
-            dynamicStrCat(&newPath, path, "/", files->arr[i]);
-            dynamicStrCat(&newCmdPath, "..", "/", cmdPath);
-            sfind_name_exec(newPath, subStr, cmdArgs, newCmdPath, execArgc);
-            free(newPath);
-            free(newCmdPath);
+
+            /* Recurse */
+            sfind_name_exec(newPath, subStr, cmdArgs,execArgc, origFD);
+            checked_chDir("..");
          }
          else
          {
             printf("Unable to enter into directory: %s/%s\n", path, files->arr[i]);
          }
       }
+
+      free(newPath);
    }
 }
 
@@ -326,14 +341,12 @@ void checked_chDir(char* filename)
    }
 }
 
-char** argsToExecCmd(char** cmdArgs, char* filename, char* cmdPath, int execArgc)
+char** argsToExecCmd(char** cmdArgs, char* filename, int execArgc)
 {
    char** execArgs = (char**) malloc(sizeof(char**) * execArgc);
    int i;
 
-   execArgs[0] = cmdPath;
-
-   for(i = 1; i < (execArgc-1); i++)
+   for(i = 0; i < (execArgc-1); i++)
    {
       if(strcmp(cmdArgs[i], "{}") ==  0)
          execArgs[i] = filename;

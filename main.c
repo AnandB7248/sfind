@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "parseCommLine.h"
+#include "checked_open.h"
 #include "sfindUtil.h"
 
 #define  TRUE 1
@@ -16,6 +19,7 @@ int main(int argc, char* argv[])
    int execArgc; 
    char** cmdArgs;
    char** execArgs;
+   int origFD;
 
    /* Parse command line arguments*/
    parseCommLine(argc, argv, &nameSwitch, &printSwitch, &execSwitch, &cmdIndex);
@@ -39,7 +43,7 @@ int main(int argc, char* argv[])
       }
    }
 
-   /* 2. Command-line is: fsfind filename -exec cmd ... \; */
+   /* 2. Command-line is: sfind filename -exec cmd ... \; */
    if(nameSwitch == FALSE && printSwitch == FALSE && execSwitch == TRUE)
    {
       cmdArgs = getCmdArgs(argc, argv, cmdIndex, &execArgc);
@@ -47,14 +51,15 @@ int main(int argc, char* argv[])
       /* If filename is just a file */
       if(isFile(argv[1]))
       {
-         execArgs = argsToExecCmd(cmdArgs, argv[1], argv[cmdIndex], execArgc);
+         execArgs = argsToExecCmd(cmdArgs, argv[1], execArgc);
          execCmd(execArgs);
          free(execArgs);
       }
       else
       {
+         origFD = checked_open(".", O_RDONLY);
          checked_chDir(argv[1]);
-         sfind_exec(argv[1], cmdArgs, argv[cmdIndex],  execArgc);
+         sfind_exec(argv[1], cmdArgs, execArgc, origFD);
       }
 
       free(cmdArgs);
@@ -86,16 +91,16 @@ int main(int argc, char* argv[])
       {
          if(isSubStr(argv[1], argv[3]))
          {
-            execArgs = argsToExecCmd(cmdArgs, argv[1], argv[cmdIndex],execArgc);
+            execArgs = argsToExecCmd(cmdArgs, argv[1],execArgc);
             execCmd(execArgs);
             free(execArgs);
          }
       }
       else
       {
-         /* Change directory to argument filename, argv[1]*/
+         origFD = checked_open(".", O_RDONLY);
          checked_chDir(argv[1]);
-         sfind_name_exec(argv[1], argv[3], cmdArgs, argv[cmdIndex], execArgc);
+         sfind_name_exec(argv[1], argv[3], cmdArgs, execArgc, origFD);
       }
 
       free(cmdArgs);
