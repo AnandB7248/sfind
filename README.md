@@ -4,7 +4,6 @@ Program: sfind
 Description: sfind, simplified find.
              Program that acts like the UNIX find utility.
 
-
 To use the program, simply call make.
 From then the proper usage of the program is:
 
