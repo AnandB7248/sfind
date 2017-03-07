@@ -30,3 +30,11 @@ int checked_open(char* path, int oflags)
    return fd;
 }
 
+void checked_close(int fd)
+{
+   if(close(fd) < 0)
+   {
+      fprintf(stderr, "close failed!\n");
+      exit(-1);
+   }
+}

@@ -11,9 +11,9 @@
 
 void sfind_print(char* path)
 {
-   CharList *files; /* Files in the current directory, to be sorted in lexicographic order */
-   int i; /* index for for-loop , see below */
-   char* newPath; /* To be used when a directory is found, as then we need to recurse into it. */
+   CharList *files;  /* Files in the current directory, to be sorted in lexicographic order */
+   int i;            /* index for for-loop , see below */
+   char* newPath;    /* To be used when a directory is found, as then we need to recurse into it. */
    files = CharList_constructor();
 
    printf("%s\n", path);
@@ -44,7 +44,6 @@ void sfind_print(char* path)
          }
          else
          {
-            /* QUESTION: Print out the path to directory or just the directory name? */
             printf("Unable to enter into directory: %s\n", files->arr[i]);
          }
       }
@@ -57,7 +56,7 @@ void sfind_name_print(char* path, char* subStr)
 {
    CharList *files;     /* Files in the current directory, to be sorted in lexicographic order */
    int i;               /* index for for-loop , see below */
-   char* newPath;  /* To be used when a directory is found, as then we need to recurse into it. */
+   char* newPath;       /* To be used when a directory is found, as then we need to recurse into it. */
    files = CharList_constructor();
 
    /* Retrieve all the contents of the directory, except for "." and ".."*/
@@ -84,7 +83,6 @@ void sfind_name_print(char* path, char* subStr)
          }
          else
          {
-            /* QUESTION: Print out the path to directory or just the directory name? */
             printf("Unable to enter into directory: %s/%s\n",path, files->arr[i]);
          }
       }
@@ -102,16 +100,17 @@ void sfind_exec(char* path, char** cmdArgs, int execArgc, int origFD)
 
    files = CharList_constructor();
    sortFiles(&files);
-   /* */
+   /* Change back to original working directory before executing cmd */
    if(fchdir(origFD) < 0)
    {
-      perror("FCHDIR FAILED!\n");
+      fprintf(stderr, "Fail to change back to original working directory.\n");
       exit(-1);
    }
    /* */
    execArgs = argsToExecCmd(cmdArgs, path ,execArgc);
    execCmd(execArgs);
    free(execArgs);
+
    checked_chDir(path);
 
    for(i = 0; i < files->numelements; i++)
@@ -123,7 +122,7 @@ void sfind_exec(char* path, char** cmdArgs, int execArgc, int origFD)
          /* */
          if(fchdir(origFD) < 0)
          {
-            perror("FCHDIR FAILED! INSIDE LOOP!\n");
+            fprintf(stderr, "Fail to change back to original working directory.\n");
             exit(-1);
          }
          /* */
@@ -170,13 +169,14 @@ void sfind_name_exec(char* path, char* subStr, char** cmdArgs, int execArgc, int
       {  /* */
          if(fchdir(origFD) < 0)
          {
-            perror("fchdir failure!\n");
+            fprintf(stderr, "Fail to change back to original working directory.\n");
             exit(-1);
          }
          /* */
          execArgs = argsToExecCmd(cmdArgs, newPath, execArgc);
          execCmd(execArgs);
          free(execArgs);
+
          checked_chDir(path);
       }
       if(isDir(files->arr[i]))
@@ -198,7 +198,9 @@ void sfind_name_exec(char* path, char* subStr, char** cmdArgs, int execArgc, int
       free(newPath);
    }
 }
-
+/* ----------------------------------------------------------------------------------------------- */
+/* -----------------------------------------HELPER METHODS---------------------------------------- */
+/* ----------------------------------------------------------------------------------------------- */
 int isFile(char* filename)
 {
    char* permBits;
@@ -256,33 +258,11 @@ int isSubStr(const char* haystack, const char* needle)
       return FALSE;
 }
 
-int bracesExist(int argc,char** argv, int cmdIndex)
-{
-   int counter = 0;
-   int i;
-
-   /* From argument after cmd to argument before \; */
-   for(i = cmdIndex + 1; i < argc - 1; i++)
-   {
-      if(strcmp(argv[i], "{}") == 0)
-         counter++;
-   }
-
-   return counter;
-}
-
 void sortFiles(CharList** sList)
 {
    DIR *dir;
    struct dirent *dp;
-   /* Change directory to path given by argument, directory */
-   /*
-   if(chdir(directory) < 0)
-   {
-      fprintf(stderr, "chdir: Unable to access: %s\n", directory);
-      exit(-1);
-   }
-   */
+
    if((dir = opendir(".")) == NULL)
    {
       perror("Cannot open the current directory");
@@ -336,7 +316,10 @@ void checked_chDir(char* filename)
 {
    if(chdir(filename) < 0)
    {
+      /*
       fprintf(stderr, "Failed to change into directory: %s\n", filename);
+      */
+      perror("chdir:");
       exit(-1);
    }
 }
@@ -348,6 +331,7 @@ char** argsToExecCmd(char** cmdArgs, char* filename, int execArgc)
 
    for(i = 0; i < (execArgc-1); i++)
    {
+      /* If {} is detected, replace it with the filename */
       if(strcmp(cmdArgs[i], "{}") ==  0)
          execArgs[i] = filename;
       else
@@ -378,26 +362,23 @@ char** getCmdArgs(int argc, char** argv, int cmdIndex, int* execArgc)
 
 void execCmd(char** argsToExec)
 {
-   /* Create another process and execute the specified command */
    pid_t pid;
-   /*
-   while(argsToExec[i] != '\0')
-   {
-      printf("Exec: %s\n", argsToExec[i++]);
-   }
-   */
    pid = checked_fork();
 
    if(pid == 0)
    {  /* Child */
       if(execvp(argsToExec[0], argsToExec) < 0)
-      {
-         fprintf(stderr, "Failed to exec: %s | [%s]\n", argsToExec[0], argsToExec[1]);
+      { 
+         fprintf(stderr, "Failed to exec: %s\n", argsToExec[0]); 
          exit(-1);
       }
    }
    else
    { /* Parent*/
-      wait(NULL);
+      if(wait(NULL) < 0)
+      {
+         perror("");
+         exit(-1);
+      }
    }
 }

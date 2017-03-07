@@ -11,8 +11,10 @@ void sfind_print(char*);
 /*             (second parameter) string-char* that represents the substring to find */
 void sfind_name_print(char*, char*);
 
+/* Function that will execute sfind when command-line arguments is: sfind filename -exec cmd ... ; */
 void sfind_exec(char*, char**, int, int);
 
+/* Function that will execute sfind when command-line arguments is: sfind filename -name str -exec cmd ... ; */
 void sfind_name_exec(char*,char*, char**, int, int);
 
 /* ------------------------------------------------------*/
@@ -30,9 +32,6 @@ int isExecSet(char*);
 /* Boolean function that returns true or false depending on if the char*-needle is in the char*-haystack or not */
 int isSubStr(const char* haystack, const char* needle);
 
-/* This function is used when -exec is present in the command-line. */
-/* Function returns the number of braces between -exec and \; */
-int bracesExist(int, char**, int);
 /* Obtains the contents of the current directory */
 /* and places it in sorted order to address specified by CharList */
 void sortFiles(CharList**);

@@ -44,7 +44,7 @@ void add(CharList* l, char* name)
 }
 
 void sort(CharList *cl)
-{
+{  /* Selection Sort */
    int i;
    int j;
    char* temp;

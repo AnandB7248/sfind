@@ -27,7 +27,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
    /* Check if filename exists. (Can also be a path that leads to a directory, instead of a file) */
    if(access(argv[1], F_OK) == -1)
    {
-      fprintf(stderr, "sfind: '%s': No such file or directory\n", argv[1]);
+      fprintf(stderr, "'%s': No such file or directory\n", argv[1]);
       exit(-1);
    }
 
@@ -36,8 +36,8 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
    /* -name, -print, or -exec */
    if((switchF = isValidSwitch(argv[2])) == FALSE)
    {
-      fprintf(stderr,"Usage: sfind filename (switch) \n");
-      fprintf(stderr, "switch can be: -name, -print, -exec.\n");
+      fprintf(stderr,"Usage: sfind filename [-name str] -print | -exec cmd ... \\;\n");
+      fprintf(stderr, "Need a switch after filename.\n");
       exit(-1);
    }
    /* switchF guaranteed to be 1,2,or 3 to represent the three valid switched */
@@ -52,7 +52,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
       /* If argument after -name is another switch, give error message and exit.*/
       if(isValidSwitch(argv[3]))
       {
-         fprintf(stderr, "Usage: After -name, there needs to be a string value that represents a substring.\n");
+         fprintf(stderr, "Usage: Switch after -name detected. \nAfter -name, there needs to be a string value that represents a substring.\n");
          exit(-1);
       }
       /* Now at argv[4], it should be a switch. */
@@ -90,7 +90,7 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
             fprintf(stderr, "Since -name is given and you wish to exec. Use at minumum: sfind filename -name str-exec (program to exec) ( \\; )\n");
             exit(-1);
          }
-         /* Verify that since -exec is given, the command line argument ends with a \\; */
+         /* Verify that since -exec is given, the command line argument ends with a ; */
          if(strcmp(argv[argc - 1], ";") != 0)
          {
             fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
@@ -102,12 +102,19 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
          index = 5;
          while(index < (argc - 1))
          {
-            if(isValidSwitch(argv[index++]))
+            if(isValidSwitch(argv[index]))
             {
                fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
                fprintf(stderr, "Switch after -exec detected.\n");
                exit(-1);
             }
+            else if(strcmp(argv[index], ";") == 0)
+            {
+               fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
+               fprintf(stderr, "Multiple \";\" detected. There should only be one if using -exec\n");
+               exit(-1);
+            }
+            index++;
          }
          *cmdIndex = 5;
          *execSptr = 1;
@@ -121,7 +128,6 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
       if(argc != 3)
       {
          fprintf(stderr, "Usage: sfind filename [-name str] -print | exec cmd ... ;\n");
-         fprintf(stderr, "Since -name is not given and you wish to print. Use: sfind filename -print\n");
          exit(-1);
       }
       *printSptr = 1;
@@ -150,12 +156,19 @@ void parseCommLine(int argc, char* argv[], int* nameSptr, int* printSptr, int* e
       index = 3;
       while(index < (argc - 1))
       {
-         if(isValidSwitch(argv[index++]))
+         if(isValidSwitch(argv[index]))
          {
             fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
             fprintf(stderr, "Switch after -exec detected.\n");
             exit(-1);
          }
+         else if(strcmp(argv[index], ";") == 0)
+         {
+            fprintf(stderr, "Usage : sfind filename [-name str] -print | -exec cmd ... ;\n");
+            fprintf(stderr, "Multiple \; detected. \n");
+            exit(-1);
+         }   
+         index++;
       }
       *cmdIndex = 3;
       *execSptr = 1;
